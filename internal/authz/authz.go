@@ -1,4 +1,4 @@
-package internal
+package authz
 
 import (
 	"context"
@@ -10,10 +10,26 @@ import (
 	"log"
 )
 
-type AuthZClient interface {
+const Schema = `
+definition blog/user {}
+
+definition blog/post {
+	relation reader: blog/user
+	relation writer: blog/user
+
+	permission read = reader + writer
+	permission write = writer
+}
+`
+
+type Client interface {
 	CheckPermission(ctx context.Context) (bool, error)
 	StoreRelationship(ctx context.Context, relationships []Relationship) error
 	ApplySchema(schema string) error
+}
+
+type client struct {
+	authzedClient *authzed.Client
 }
 
 type Relationship struct {
@@ -32,17 +48,13 @@ type Subject struct {
 	Id   string
 }
 
-type authZClient struct {
-	authZedClient *authzed.Client
-}
-
-func (a *authZClient) CheckPermission(ctx context.Context) (bool, error) {
+func (a *client) CheckPermission(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (a *authZClient) ApplySchema(schema string) error {
+func (a *client) ApplySchema(schema string) error {
 	request := &pb.WriteSchemaRequest{Schema: schema}
-	_, err := a.authZedClient.WriteSchema(context.Background(), request)
+	_, err := a.authzedClient.WriteSchema(context.Background(), request)
 	if err != nil {
 		log.Fatalf("failed to write schema: %s", err)
 		return err
@@ -50,21 +62,22 @@ func (a *authZClient) ApplySchema(schema string) error {
 	return nil
 }
 
-func (a *authZClient) StoreRelationship(ctx context.Context, relationships []Relationship) error {
+func (a *client) StoreRelationship(ctx context.Context, relationships []Relationship) error {
+
 	return nil
 }
 
-func NewAuthZClient(host string, token string) (AuthZClient, error) {
-	client, err := authzed.NewClient(
+func NewAuthZClient(host string, token string) (Client, error) {
+	c, err := authzed.NewClient(
 		host,
 		grpcutil.WithInsecureBearerToken(token),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		return &authZClient{}, err
+		return &client{}, err
 	}
 
-	return &authZClient{
-		authZedClient: client,
+	return &client{
+		authzedClient: c,
 	}, nil
 }
