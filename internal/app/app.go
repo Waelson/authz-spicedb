@@ -28,7 +28,10 @@ func (a *application) Run(ctx context.Context) error {
 	authzController := controller.NewAuthzController(client)
 
 	r := gin.Default()
-	r.POST("/authz/relationship", authzController.StoreRelationship)
+	v1 := r.Group("/authz")
+	{
+		v1.POST("/relationship", authzController.StoreRelationship)
+	}
 
 	return r.Run(":8080")
 }
