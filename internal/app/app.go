@@ -30,7 +30,9 @@ func (a *application) Run(ctx context.Context) error {
 	r := gin.Default()
 	v1 := r.Group("/authz")
 	{
-		v1.POST("/relationship", authzController.StoreRelationship)
+		v1.POST("/relationship", authzController.SaveRelationship)
+		v1.DELETE("/relationship", authzController.DeleteRelationship)
+		v1.POST("/check-permission", authzController.CheckPermission)
 	}
 
 	return r.Run(":8080")
